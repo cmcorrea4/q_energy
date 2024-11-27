@@ -11,12 +11,9 @@ class QLearningHVAC:
         self.learning_rate = 0.1
         self.discount_factor = 0.9
         self.epsilon = 0.1
-        
-        # Acciones posibles: aumentar, disminuir o mantener temperatura
         self.actions = ['increase', 'decrease', 'maintain']
         
     def get_state(self, current_temp, target_temp, time_of_day):
-        # Discretizar el estado para reducir el espacio de estados
         temp_diff = round((target_temp - current_temp) / 0.5) * 0.5
         return (temp_diff, time_of_day)
     
@@ -35,7 +32,6 @@ class QLearningHVAC:
         best_next_action = max(self.actions, key=lambda a: self.q_table[next_state][a])
         old_q = self.q_table[state][action]
         next_max_q = self.q_table[next_state][best_next_action]
-        
         new_q = old_q + self.learning_rate * (reward + self.discount_factor * next_max_q - old_q)
         self.q_table[state][action] = new_q
 
@@ -55,7 +51,6 @@ def simulate_temperature_change(current_temp, action, external_temp):
 def main():
     st.title("🌡️ Control HVAC Inteligente con Q-Learning")
     
-    # Inicialización de variables en la sesión
     if 'agent' not in st.session_state:
         st.session_state.agent = QLearningHVAC()
     if 'history' not in st.session_state:
@@ -63,12 +58,10 @@ def main():
     if 'episode' not in st.session_state:
         st.session_state.episode = 0
     
-    # Configuración en la barra lateral
     st.sidebar.header("📊 Parámetros de Control")
     target_temp = st.sidebar.slider("Temperatura Objetivo (°C)", 18.0, 28.0, 22.0, 0.5)
     external_temp = st.sidebar.slider("Temperatura Externa (°C)", 15.0, 35.0, 25.0, 0.5)
     
-    # Controles principales
     col1, col2 = st.columns(2)
     with col1:
         if st.button("▶️ Ejecutar Episodio"):
@@ -78,15 +71,13 @@ def main():
                 temp_history = []
                 energy_history = []
                 actions_history = []
+                hours = list(range(24))
                 
-                # Simular 24 horas
-                for hour in range(24):
+                for hour in hours:
                     state = st.session_state.agent.get_state(current_temp, target_temp, hour)
                     action = st.session_state.agent.get_action(state)
-                    
                     new_temp, energy_used = simulate_temperature_change(current_temp, action, external_temp)
                     reward = st.session_state.agent.calculate_reward(target_temp - new_temp, energy_used)
-                    
                     next_state = st.session_state.agent.get_state(new_temp, target_temp, (hour + 1) % 24)
                     st.session_state.agent.update_q_value(state, action, reward, next_state)
                     
@@ -101,7 +92,8 @@ def main():
                     'temperatures': temp_history,
                     'energy': energy_history,
                     'actions': actions_history,
-                    'total_reward': total_reward
+                    'total_reward': total_reward,
+                    'hours': hours
                 })
                 st.session_state.episode += 1
     
@@ -112,65 +104,66 @@ def main():
             st.session_state.episode = 0
             st.experimental_rerun()
     
-    # Mostrar resultados
     if st.session_state.history:
         latest = st.session_state.history[-1]
         
-        # Crear DataFrame para las gráficas
-        df_temp = pd.DataFrame({
-            'Hora': range(24),
+        # Gráfico de temperatura
+        st.subheader("📈 Control de Temperatura")
+        temp_df = pd.DataFrame({
             'Temperatura Actual': latest['temperatures'],
             'Temperatura Objetivo': [target_temp] * 24
         })
-        
-        # Gráfico de temperatura
-        st.subheader("📈 Control de Temperatura")
-        st.line_chart(df_temp.set_index('Hora'))
+        st.line_chart(temp_df)
         
         # Gráfico de consumo energético
         st.subheader("⚡ Consumo Energético por Hora")
-        df_energy = pd.DataFrame({
-            'Hora': range(24),
+        energy_df = pd.DataFrame({
             'Consumo': latest['energy']
         })
-        st.bar_chart(df_energy.set_index('Hora'))
+        st.bar_chart(energy_df)
         
-        # Historial de acciones
+        # Tabla de acciones
         st.subheader("🎮 Acciones Tomadas")
-        df_actions = pd.DataFrame({
-            'Hora': range(24),
+        actions_df = pd.DataFrame({
+            'Hora': latest['hours'],
             'Acción': latest['actions']
         })
-        st.dataframe(df_actions, use_container_width=True)
+        st.dataframe(actions_df)
         
-        # Historial de recompensas si hay más de un episodio
+        # Historial de recompensas
         if len(st.session_state.history) > 1:
             st.subheader("🎯 Evolución del Aprendizaje")
-            df_rewards = pd.DataFrame({
-                'Episodio': range(len(st.session_state.history)),
+            rewards_df = pd.DataFrame({
                 'Recompensa': [h['total_reward'] for h in st.session_state.history]
             })
-            st.line_chart(df_rewards.set_index('Episodio'))
+            st.line_chart(rewards_df)
         
-        # Métricas clave
+        # Métricas
         st.subheader("📊 Métricas del Último Episodio")
         col1, col2, col3 = st.columns(3)
+        
         with col1:
+            mean_temp = np.mean(latest['temperatures'])
             st.metric(
                 label="Temperatura Promedio",
-                value=f"{np.mean(latest['temperatures']):.1f}°C",
-                delta=f"{np.mean(latest['temperatures']) - target_temp:.1f}°C"
+                value=f"{mean_temp:.1f}°C",
+                delta=f"{mean_temp - target_temp:.1f}°C"
             )
+        
         with col2:
+            total_energy = sum(latest['energy'])
             st.metric(
                 label="Consumo Total",
-                value=f"{sum(latest['energy']):.1f} kWh"
+                value=f"{total_energy:.1f} kWh"
             )
+        
         with col3:
+            current_reward = latest['total_reward']
+            previous_reward = st.session_state.history[-2]['total_reward'] if len(st.session_state.history) > 1 else None
             st.metric(
                 label="Recompensa Total",
-                value=f"{latest['total_reward']:.1f}",
-                delta=f"{latest['total_reward'] - st.session_state.history[-2]['total_reward']:.1f}" if len(st.session_state.history) > 1 else None
+                value=f"{current_reward:.1f}",
+                delta=f"{current_reward - previous_reward:.1f}" if previous_reward is not None else None
             )
         
         # Estadísticas adicionales
@@ -180,7 +173,7 @@ def main():
         
         # Distribución de acciones
         st.subheader("🎯 Distribución de Acciones")
-        action_counts = pd.DataFrame(latest['actions']).value_counts()
+        action_counts = pd.Series(latest['actions']).value_counts()
         st.bar_chart(action_counts)
 
 if __name__ == "__main__":
