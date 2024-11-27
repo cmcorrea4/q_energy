@@ -58,9 +58,54 @@ def main():
     if 'episode' not in st.session_state:
         st.session_state.episode = 0
     
+    # Explicación en la barra lateral
+    st.sidebar.header("ℹ️ Acerca de la Aplicación")
+    st.sidebar.markdown("""
+    Esta aplicación simula un sistema de control HVAC inteligente que aprende a mantener 
+    una temperatura objetivo mientras minimiza el consumo de energía.
+
+    **¿Cómo funciona?**
+    1. El sistema observa la temperatura actual y decide si debe:
+        - Aumentar la temperatura 🔼
+        - Disminuir la temperatura 🔽
+        - Mantenerla estable ➡️
+    
+    2. Con cada decisión:
+        - Aprende de los resultados
+        - Ajusta su estrategia
+        - Balancea confort y eficiencia
+    
+    3. El aprendizaje mejora con cada episodio:
+        - Mejor control de temperatura
+        - Menor consumo energético
+        - Mayor recompensa total
+    """)
+
     st.sidebar.header("📊 Parámetros de Control")
-    target_temp = st.sidebar.slider("Temperatura Objetivo (°C)", 18.0, 28.0, 22.0, 0.5)
-    external_temp = st.sidebar.slider("Temperatura Externa (°C)", 15.0, 35.0, 25.0, 0.5)
+    
+    target_temp = st.sidebar.slider(
+        "Temperatura Objetivo (°C)", 
+        min_value=10.0,
+        max_value=35.0,
+        value=22.0,
+        step=0.5
+    )
+    
+    external_temp = st.sidebar.slider(
+        "Temperatura Externa (°C)", 
+        min_value=0.0,
+        max_value=45.0,
+        value=25.0,
+        step=0.5
+    )
+
+    st.sidebar.markdown("""
+    **Sobre los parámetros:**
+    - **Temperatura Objetivo**: La temperatura que deseas mantener
+    - **Temperatura Externa**: Simula las condiciones ambientales
+    
+    Prueba diferentes combinaciones para ver cómo el sistema aprende a adaptarse.
+    """)
     
     col1, col2 = st.columns(2)
     with col1:
